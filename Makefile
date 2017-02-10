@@ -43,7 +43,7 @@ VERSION_MINOR		:= 0
 # Build verbosity
 V			:= 0
 # Debug build
-DEBUG			:= 1
+#DEBUG			:= 1
 # Build architecture
 ARCH 			:= aarch64
 # Build platform
@@ -80,7 +80,7 @@ else
 endif
 export Q
 
-ifneq (${DEBUG}, 0)
+ifeq (${DEBUG}, 1)
 	BUILD_TYPE	:=	debug
 	# Use LOG_LEVEL_INFO by default for debug builds
 	LOG_LEVEL	:=	40
