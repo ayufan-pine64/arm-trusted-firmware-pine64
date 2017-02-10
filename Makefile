@@ -36,7 +36,7 @@ ifneq ("$(arm_toolchain_check)", "yes")
 endif
 
 CROSS_COMPILE = ../toolchain/gcc-aarch64/bin/aarch64-linux-gnu-
-BL33= 
+BL33=
 #
 # Trusted Firmware Version
 #
@@ -57,7 +57,7 @@ ARCH 			:= aarch64
 DEFAULT_PLAT		:= sun50iw1p1
 PLAT			:= ${DEFAULT_PLAT}
 # SPD choice
-SPD			:= none
+SPD			:= tspd
 # Base commit to perform code check on
 BASE_COMMIT		:= origin/master
 # NS timer register save and restore
@@ -257,7 +257,7 @@ PP			:=	${CROSS_COMPILE}gcc -E ${CFLAGS}
 
 # Variables for use with Firmware Image Package
 FIPTOOLPATH		?=	tools/fip_create
-FIPTOOL			?=	${FIPTOOLPATH}/fip_create 
+FIPTOOL			?=	${FIPTOOLPATH}/fip_create
 fiptool:		${FIPTOOL}
 fip:			${BUILD_PLAT}/fip.bin
 
@@ -433,7 +433,7 @@ ifeq (bl31.bin,$(notdir ${BIN}))
 	$${Q}git show HEAD --pretty=format:"%H" | head -n 1 > cur.log
 	$${Q}./tools/add_hash_bl31.sh -f $$@ -m bl31
 endif
-	@cp -v $$@ ../../tools/pack/chips/$(DEFAULT_PLAT)/bin/
+	@cp -v $$@ ../../tools/pack/chips/$(PLAT)/bin/
 
 .PHONY : bl$(1)
 bl$(1) : $(BUILD_DIR) $(BIN) $(DUMP)

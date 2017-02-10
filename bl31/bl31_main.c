@@ -38,6 +38,7 @@
 #include <platform.h>
 #include <runtime_svc.h>
 #include <string.h>
+#include <head_data.h>
 
 /*******************************************************************************
  * This function pointer is used to initialise the BL32 image. It's initialized
@@ -52,7 +53,7 @@ static int32_t (*bl32_init)(void);
  * (non-secure & default) or BL32 (secure).
  ******************************************************************************/
 static uint32_t next_image_type = NON_SECURE;
-
+extern  struct spare_monitor_head  monitor_head;
 /*******************************************************************************
  * Simple function to initialise all BL31 helper libraries.
  ******************************************************************************/
@@ -106,9 +107,12 @@ void bl31_main(void)
 	/*
 	 * If SPD had registerd an init hook, invoke it.
 	 */
-	if (bl32_init) {
-		INFO("BL3-1: Initializing BL3-2\n");
-		//(*bl32_init)();
+	if(monitor_head.secureos_base){
+		NOTICE("secure os exist\n");
+		if (bl32_init) {
+			INFO("BL3-1: Initializing BL3-2\n");
+			(*bl32_init)();
+		}
 	}
 	//__asm__ __volatile__ ("b .");
 	/*
