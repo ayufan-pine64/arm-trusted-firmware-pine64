@@ -238,15 +238,15 @@ LDFLAGS			+=	--fatal-warnings -O1
 LDFLAGS			+=	--gc-sections
 
 
-CC			:=	${CROSS_COMPILE}gcc
-CPP			:=	${CROSS_COMPILE}cpp
-AS			:=	${CROSS_COMPILE}gcc
-AR			:=	${CROSS_COMPILE}ar
+CC			:=	${CROSS_COMPILE}gcc-4.9
+CPP			:=	${CROSS_COMPILE}cpp-4.9
+AS			:=	${CROSS_COMPILE}gcc-4.9
+AR			:=	${CROSS_COMPILE}ar-4.9
 LD			:=	${CROSS_COMPILE}ld
 OC			:=	${CROSS_COMPILE}objcopy
 OD			:=	${CROSS_COMPILE}objdump
 NM			:=	${CROSS_COMPILE}nm
-PP			:=	${CROSS_COMPILE}gcc -E ${CFLAGS}
+PP			:=	${CROSS_COMPILE}gcc-4.9 -E ${CFLAGS}
 
 # Variables for use with Firmware Image Package
 FIPTOOLPATH		?=	tools/fip_create
