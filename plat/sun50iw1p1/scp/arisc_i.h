@@ -44,25 +44,7 @@
 #define DRV_NAME    "sunxi-arisc"
 #define DEV_NAME    "sunxi-arisc"
 
-#if defined CONFIG_ARCH_SUN8IW1P1
-#define DRV_VERSION "1.00"
-#elif defined CONFIG_ARCH_SUN8IW3P1
-#define DRV_VERSION "1.01"
-#elif defined CONFIG_ARCH_SUN8IW5P1
-#define DRV_VERSION "1.02"
-#elif defined CONFIG_ARCH_SUN8IW6P1
-#define DRV_VERSION "1.03"
-#elif defined CONFIG_ARCH_SUN8IW7P1
-#define DRV_VERSION "1.04"
-#elif defined CONFIG_ARCH_SUN8IW9P1
-#define DRV_VERSION "1.05"
-#elif defined CONFIG_ARCH_SUN50IW1P1
 #define DRV_VERSION "1.10"
-#elif defined CONFIG_ARCH_SUN9IW1P1
-#define DRV_VERSION "2.00"
-#else
-#error "please select a platform\n"
-#endif
 
 extern unsigned int arisc_debug_dram_crc_en;
 extern unsigned int arisc_debug_dram_crc_srcaddr;
@@ -78,7 +60,4 @@ extern int arisc_config_dram_paras(void);
 extern int arisc_sysconfig_ir_paras(void);
 extern int arisc_config_pmu_paras(void);
 extern int arisc_suspend_flag_query(void);
-#if (defined CONFIG_ARCH_SUN8IW7P1)
-extern void arisc_power_off(void);
-#endif
 #endif  //__ARISC_I_H__

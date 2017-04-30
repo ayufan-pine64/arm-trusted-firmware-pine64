@@ -41,7 +41,6 @@ typedef struct arisc_msg_cb
 	void        *arg;
 } arisc_msg_cb_t;
 
-#ifdef CONFIG_ARCH_SUN50IW1P1
 /*
  * the structure of message frame,
  * this structure will transfer between arisc and ac327.
@@ -59,23 +58,4 @@ typedef struct arisc_message
 	volatile void                   *private;     /* message private data                      */
 	volatile unsigned int            paras[22];   /* the parameters of message                 */
 } arisc_message_t;
-#else
-/*
- * the structure of message frame,
- * this structure will transfer between arisc and ac327.
- * sizeof(struct message) : 64Byte.
- */
-typedef struct arisc_message
-{
-	volatile unsigned char           state;     /* identify the used status of message frame */
-	volatile unsigned char           attr;      /* message attribute : SYN OR ASYN           */
-	volatile unsigned char           type;      /* message type : DVFS_REQ                   */
-	volatile unsigned char           result;    /* message process result                    */
-	volatile struct arisc_message   *next;      /* pointer of next message frame             */
-	volatile struct arisc_msg_cb         cb;        /* the callback function and arg of message  */
-	volatile void                   *private;   /* message private data                      */
-	volatile unsigned int                paras[11]; /* the parameters of message                 */
-} arisc_message_t;
-#endif
-
 #endif  /* __ARISC_MESSAGES_H */

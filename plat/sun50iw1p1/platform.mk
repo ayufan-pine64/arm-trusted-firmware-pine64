@@ -66,7 +66,7 @@ PLAT_INCLUDES		:=	-Iplat/sun50iw1p1/include/
 PLAT_BL_COMMON_SOURCES	:= lib/aarch64/xlat_tables.c			\
 				plat/common/aarch64/plat_common.c		\
 				plat/sun50iw1p1/drivers/uart/uart.c		\
-				plat/sun50iw1p1/drivers/gpio/gpio.c		
+				plat/sun50iw1p1/drivers/gpio/gpio.c
 
 
 
@@ -86,6 +86,8 @@ BL31_SOURCES		+=	drivers/arm/cci400/cci400.c \
 				plat/sun50iw1p1/plat_topology.c				\
 				plat/sun50iw1p1/aarch64/plat_helpers.S			\
 				plat/sun50iw1p1/aarch64/sunxi_common.c			\
-				services/arm/arm_svc_setup.c	
+				services/arm/arm_svc_setup.c		\
+				drivers/efuse/board_efuse.c			\
+				drivers/efuse/sunxi_efuse.c
 
 include plat/${PLAT}/scp/arisc.mk

@@ -72,9 +72,9 @@ DEFINE_SVC_UUID(tsp_uuid,
 int32_t tspd_init(void);
 
 /*******************************************************************************
- * This function is the handler registered for S-EL1 interrupts by the TSPD. It
- * validates the interrupt and upon success arranges entry into the TSP at
- * 'tsp_fiq_entry()' for handling the interrupt.
+ * This function is the handler registered for S-EL1 interrupts by the
+ * OPTEED. It validates the interrupt and upon success arranges entry into
+ * the OPTEE at 'optee_fiq_entry()' for handling the interrupt.
  ******************************************************************************/
 static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 					    uint32_t flags,
@@ -82,8 +82,8 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 					    void *cookie)
 {
 	uint32_t linear_id;
-	uint64_t mpidr;
-	tsp_context_t *tsp_ctx;
+	tsp_context_t *tspd_ctx;
+	uint64_t mpidr = read_mpidr();
 
 	/* Check the security state when the exception was generated */
 	assert(get_interrupt_src_ss(flags) == NON_SECURE);
@@ -94,47 +94,28 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 #endif
 
 	/* Sanity check the pointer to this cpu's context */
-	mpidr = read_mpidr();
 	assert(handle == cm_get_context(NON_SECURE));
 
-	/* Save the non-secure context before entering the TSP */
+	/* Save the non-secure context before entering the OPTEE */
 	cm_el1_sysregs_context_save(NON_SECURE);
 
-	/* Get a reference to this cpu's TSP context */
+	/* Get a reference to this cpu's OPTEE context */
 	linear_id = platform_get_core_pos(mpidr);
-	tsp_ctx = &tspd_sp_context[linear_id];
-	assert(&tsp_ctx->cpu_ctx == cm_get_context(SECURE));
+	tspd_ctx = &tspd_sp_context[linear_id];
+	assert(&tspd_ctx->cpu_ctx == cm_get_context(SECURE));
 
-	/*
-	 * Determine if the TSP was previously preempted. Its last known
-	 * context has to be preserved in this case.
-	 * The TSP should return control to the TSPD after handling this
-	 * FIQ. Preserve essential EL3 context to allow entry into the
-	 * TSP at the FIQ entry point using the 'cpu_context' structure.
-	 * There is no need to save the secure system register context
-	 * since the TSP is supposed to preserve it during S-EL1 interrupt
-	 * handling.
-	 */
-	if (get_std_smc_active_flag(tsp_ctx->state)) {
-		tsp_ctx->saved_spsr_el3 = SMC_GET_EL3(&tsp_ctx->cpu_ctx,
-						      CTX_SPSR_EL3);
-		tsp_ctx->saved_elr_el3 = SMC_GET_EL3(&tsp_ctx->cpu_ctx,
-						     CTX_ELR_EL3);
-	}
-
+	cm_set_elr_el3(SECURE, (uint64_t)&tsp_vectors->fiq_entry);
 	cm_el1_sysregs_context_restore(SECURE);
-	cm_set_elr_spsr_el3(SECURE, (uint64_t) &tsp_vectors->fiq_entry,
-		    SPSR_64(MODE_EL1, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS));
 	cm_set_next_eret_context(SECURE);
 
 	/*
-	 * Tell the TSP that it has to handle an FIQ synchronously. Also the
-	 * instruction in normal world where the interrupt was generated is
-	 * passed for debugging purposes. It is safe to retrieve this address
-	 * from ELR_EL3 as the secure context will not take effect until
-	 * el3_exit().
+	 * Tell the OPTEE that it has to handle an FIQ (synchronously).
+	 * Also the instruction in normal world where the interrupt was
+	 * generated is passed for debugging purposes. It is safe to
+	 * retrieve this address from ELR_EL3 as the secure context will
+	 * not take effect until el3_exit().
 	 */
-	SMC_RET2(&tsp_ctx->cpu_ctx, TSP_HANDLE_FIQ_AND_RETURN, read_elr_el3());
+	SMC_RET1(&tspd_ctx->cpu_ctx, read_elr_el3());
 }
 
 /*******************************************************************************
@@ -177,7 +158,7 @@ int32_t tspd_setup(void)
 	 * for the time being.
 	 */
 	tspd_init_tsp_ep_state(tsp_ep_info,
-				TSP_AARCH64,
+				TSP_AARCH32,
 				tsp_ep_info->pc,
 				&tspd_sp_context[linear_id]);
 
@@ -233,10 +214,10 @@ int32_t tspd_init(void)
 /*******************************************************************************
  * This function is responsible for handling all SMCs in the Trusted OS/App
  * range from the non-secure state as defined in the SMC Calling Convention
- * Document. It is also responsible for communicating with the Secure payload
- * to delegate work and return results back to the non-secure state. Lastly it
- * will also return any information that the secure payload needs to do the
- * work assigned to it.
+ * Document. It is also responsible for communicating with the Secure
+ * payload to delegate work and return results back to the non-secure
+ * state. Lastly it will also return any information that OPTEE needs to do
+ * the work assigned to it.
  ******************************************************************************/
 uint64_t tspd_smc_handler(uint32_t smc_fid,
 			 uint64_t x1,
@@ -248,122 +229,75 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 			 uint64_t flags)
 {
 	cpu_context_t *ns_cpu_context;
-	unsigned long mpidr = read_mpidr();
-	uint32_t linear_id = platform_get_core_pos(mpidr), ns;
+	uint64_t mpidr = read_mpidr();
+	uint32_t linear_id = platform_get_core_pos(mpidr);
 	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
 	uint64_t rc;
-#if TSP_INIT_ASYNC
-	entry_point_info_t *next_image_info;
-#endif
-	WARN("tspd_smc_handler call\n");
-	/* Determine which security state this SMC originated from */
-	ns = is_caller_non_secure(flags);
 
-	switch (smc_fid) {
-
+//NOTICE("smc id=%x, x1=%x, cpu id=%d\n", smc_fid, (uint32_t)x1, linear_id);
 	/*
-	 * This function ID is used by TSP to indicate that it was
-	 * preempted by a normal world IRQ.
-	 *
+	 * Determine which security state this SMC originated from
 	 */
-	case TSP_PREEMPTED:
-		if (ns)
-			SMC_RET1(handle, SMC_UNK);
 
-		assert(handle == cm_get_context(SECURE));
-		cm_el1_sysregs_context_save(SECURE);
-		/* Get a reference to the non-secure context */
-		ns_cpu_context = cm_get_context(NON_SECURE);
-		assert(ns_cpu_context);
+	if (is_caller_non_secure(flags)) {
+		/*
+		 * This is a fresh request from the non-secure client.
+		 * The parameters are in x1 and x2. Figure out which
+		 * registers need to be preserved, save the non-secure
+		 * state and send the request to the secure payload.
+		 */
+		assert(handle == cm_get_context(NON_SECURE));
+
+		cm_el1_sysregs_context_save(NON_SECURE);
 
 		/*
-		 * Restore non-secure state. There is no need to save the
-		 * secure system register context since the TSP was supposed
-		 * to preserve it during S-EL1 interrupt handling.
+		 * We are done stashing the non-secure context. Ask the
+		 * OPTEE to do the work now.
 		 */
-		cm_el1_sysregs_context_restore(NON_SECURE);
-		cm_set_next_eret_context(NON_SECURE);
-
-		SMC_RET1(ns_cpu_context, SMC_PREEMPTED);
-
-	/*
-	 * This function ID is used only by the TSP to indicate that it has
-	 * finished handling a S-EL1 FIQ interrupt. Execution should resume
-	 * in the normal world.
-	 */
-	case TSP_HANDLED_S_EL1_FIQ:
-		if (ns)
-			SMC_RET1(handle, SMC_UNK);
-
-		assert(handle == cm_get_context(SECURE));
 
 		/*
-		 * Restore the relevant EL3 state which saved to service
-		 * this SMC.
+		 * Verify if there is a valid context to use, copy the
+		 * operation type and parameters to the secure context
+		 * and jump to the fast smc entry point in the secure
+		 * payload. Entry into S-EL1 will take place upon exit
+		 * from this function.
 		 */
-		if (get_std_smc_active_flag(tsp_ctx->state)) {
-			SMC_SET_EL3(&tsp_ctx->cpu_ctx,
-				    CTX_SPSR_EL3,
-				    tsp_ctx->saved_spsr_el3);
-			SMC_SET_EL3(&tsp_ctx->cpu_ctx,
-				    CTX_ELR_EL3,
-				    tsp_ctx->saved_elr_el3);
+		assert(&tsp_ctx->cpu_ctx == cm_get_context(SECURE));
+
+		/* Set appropriate entry for SMC.
+		 * We expect OPTEE to manage the PSTATE.I and PSTATE.F
+		 * flags as appropriate.
+		 */
+		if (GET_SMC_TYPE(smc_fid) == SMC_TYPE_FAST) {
+			cm_set_elr_el3(SECURE, (uint64_t)
+					&tsp_vectors->fast_smc_entry);
+		} else {
+			cm_set_elr_el3(SECURE, (uint64_t)
+					&tsp_vectors->std_smc_entry);
 		}
 
-		/* Get a reference to the non-secure context */
-		ns_cpu_context = cm_get_context(NON_SECURE);
-		assert(ns_cpu_context);
+		cm_el1_sysregs_context_restore(SECURE);
+		cm_set_next_eret_context(SECURE);
 
-		/*
-		 * Restore non-secure state. There is no need to save the
-		 * secure system register context since the TSP was supposed
-		 * to preserve it during S-EL1 interrupt handling.
-		 */
-		cm_el1_sysregs_context_restore(NON_SECURE);
-		cm_set_next_eret_context(NON_SECURE);
+		/* Propagate hypervisor client ID */
+		write_ctx_reg(get_gpregs_ctx(&tsp_ctx->cpu_ctx),
+			      CTX_GPREG_X7,
+			      read_ctx_reg(get_gpregs_ctx(handle),
+					   CTX_GPREG_X7));
 
-		SMC_RET0((uint64_t) ns_cpu_context);
-
+		SMC_RET4(&tsp_ctx->cpu_ctx, smc_fid, x1, x2, x3);
+	}
 
 	/*
-	 * This function ID is used only by the TSP to indicate that it was
-	 * interrupted due to a EL3 FIQ interrupt. Execution should resume
-	 * in the normal world.
+	 * Returning from OPTEE
 	 */
-	case TSP_EL3_FIQ:
-		if (ns)
-			SMC_RET1(handle, SMC_UNK);
-
-		assert(handle == cm_get_context(SECURE));
-
-		/* Assert that standard SMC execution has been preempted */
-		assert(get_std_smc_active_flag(tsp_ctx->state));
-
-		/* Save the secure system register state */
-		cm_el1_sysregs_context_save(SECURE);
-
-		/* Get a reference to the non-secure context */
-		ns_cpu_context = cm_get_context(NON_SECURE);
-		assert(ns_cpu_context);
-
-		/* Restore non-secure state */
-		cm_el1_sysregs_context_restore(NON_SECURE);
-		cm_set_next_eret_context(NON_SECURE);
-
-		SMC_RET1(ns_cpu_context, TSP_EL3_FIQ);
-
-
+	switch (smc_fid) {
 	/*
-	 * This function ID is used only by the SP to indicate it has
-	 * finished initialising itself after a cold boot
+	 * OPTEE has finished initialising itself after a cold boot
 	 */
-	case TSP_ENTRY_DONE:
-		WARN("tspd_smc_handler call:TSP_ENTRY_DONE\n");
-		if (ns)
-			SMC_RET1(handle, SMC_UNK);
-
+	case TEESMC_OPTEED_RETURN_ENTRY_DONE:
 		/*
-		 * Stash the SP entry points information. This is done
+		 * Stash the OPTEE entry points information. This is done
 		 * only once on the primary cpu
 		 */
 		assert(tsp_vectors == NULL);
@@ -373,10 +307,10 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 			set_tsp_pstate(tsp_ctx->state, TSP_PSTATE_ON);
 
 			/*
-			 * TSP has been successfully initialized. Register power
-			 * managemnt hooks with PSCI
+			 * OPTEE has been successfully initialized.
+			 * Register power management hooks with PSCI
 			 */
-			psci_register_spd_pm_hook(&tspd_pm);
+			// psci_register_spd_pm_hook(&opteed_pm);   ignored it
 
 			/*
 			 * Register an interrupt handler for S-EL1 interrupts
@@ -391,42 +325,25 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 			if (rc)
 				panic();
 		}
-
-
-#if TSP_INIT_ASYNC
-		/* Save the Secure EL1 system register context */
-		assert(cm_get_context(SECURE) == &tsp_ctx->cpu_ctx);
-		cm_el1_sysregs_context_save(SECURE);
-
-		/* Program EL3 registers to enable entry into the next EL */
-		next_image_info = bl31_plat_get_next_image_ep_info(NON_SECURE);
-		assert(next_image_info);
-		assert(NON_SECURE ==
-				GET_SECURITY_STATE(next_image_info->h.attr));
-
-		cm_init_context(read_mpidr_el1(), next_image_info);
-		cm_prepare_el3_exit(NON_SECURE);
-		SMC_RET0(cm_get_context(NON_SECURE));
-#else
 		/*
-		 * SP reports completion. The SPD must have initiated
-		 * the original request through a synchronous entry
-		 * into the SP. Jump back to the original C runtime
-		 * context.
+		 * OPTEE reports completion. The OPTEED must have initiated
+		 * the original request through a synchronous entry into
+		 * OPTEE. Jump back to the original C runtime context.
 		 */
 		tspd_synchronous_sp_exit(tsp_ctx, x1);
-#endif
+
 
 	/*
-	 * These function IDs is used only by the SP to indicate it has
+	 * These function IDs is used only by OP-TEE to indicate it has
 	 * finished:
 	 * 1. turning itself on in response to an earlier psci
 	 *    cpu_on request
 	 * 2. resuming itself after an earlier psci cpu_suspend
 	 *    request.
 	 */
-	case TSP_ON_DONE:
-	case TSP_RESUME_DONE:
+	case TEESMC_OPTEED_RETURN_ON_DONE:
+	case TEESMC_OPTEED_RETURN_RESUME_DONE:
+
 
 	/*
 	 * These function IDs is used only by the SP to indicate it has
@@ -436,176 +353,64 @@ uint64_t tspd_smc_handler(uint32_t smc_fid,
 	 * 2. turning itself off in response to an earlier psci
 	 *    cpu_off request.
 	 */
-	case TSP_OFF_DONE:
-	case TSP_SUSPEND_DONE:
-	case TSP_SYSTEM_OFF_DONE:
-	case TSP_SYSTEM_RESET_DONE:
-		if (ns)
-			SMC_RET1(handle, SMC_UNK);
+	case TEESMC_OPTEED_RETURN_OFF_DONE:
+	case TEESMC_OPTEED_RETURN_SUSPEND_DONE:
+	case TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE:
+	case TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE:
 
 		/*
-		 * SP reports completion. The SPD must have initiated the
-		 * original request through a synchronous entry into the SP.
+		 * OPTEE reports completion. The OPTEED must have initiated the
+		 * original request through a synchronous entry into OPTEE.
 		 * Jump back to the original C runtime context, and pass x1 as
 		 * return value to the caller
 		 */
 		tspd_synchronous_sp_exit(tsp_ctx, x1);
 
+	/*
+	 * OPTEE is returning from a call or being preempted from a call, in
+	 * either case execution should resume in the normal world.
+	 */
+	case TEESMC_OPTEED_RETURN_CALL_DONE:
 		/*
-		 * Request from non-secure client to perform an
-		 * arithmetic operation or response from secure
-		 * payload to an earlier request.
+		 * This is the result from the secure client of an
+		 * earlier request. The results are in x0-x3. Copy it
+		 * into the non-secure context, save the secure state
+		 * and return to the non-secure state.
 		 */
-	case TSP_FAST_FID(TSP_ADD):
-	case TSP_FAST_FID(TSP_SUB):
-	case TSP_FAST_FID(TSP_MUL):
-	case TSP_FAST_FID(TSP_DIV):
+		assert(handle == cm_get_context(SECURE));
+		cm_el1_sysregs_context_save(SECURE);
 
-	case TSP_STD_FID(TSP_ADD):
-	case TSP_STD_FID(TSP_SUB):
-	case TSP_STD_FID(TSP_MUL):
-	case TSP_STD_FID(TSP_DIV):
-		if (ns) {
-			/*
-			 * This is a fresh request from the non-secure client.
-			 * The parameters are in x1 and x2. Figure out which
-			 * registers need to be preserved, save the non-secure
-			 * state and send the request to the secure payload.
-			 */
-			assert(handle == cm_get_context(NON_SECURE));
+		/* Get a reference to the non-secure context */
+		ns_cpu_context = cm_get_context(NON_SECURE);
+		assert(ns_cpu_context);
 
-			/* Check if we are already preempted */
-			if (get_std_smc_active_flag(tsp_ctx->state))
-				SMC_RET1(handle, SMC_UNK);
+		/* Restore non-secure state */
+		cm_el1_sysregs_context_restore(NON_SECURE);
+		cm_set_next_eret_context(NON_SECURE);
+		SMC_RET4(ns_cpu_context, x1, x2, x3, x4);
 
-			cm_el1_sysregs_context_save(NON_SECURE);
-
-			/* Save x1 and x2 for use by TSP_GET_ARGS call below */
-			store_tsp_args(tsp_ctx, x1, x2);
-
-			/*
-			 * We are done stashing the non-secure context. Ask the
-			 * secure payload to do the work now.
-			 */
-
-			/*
-			 * Verify if there is a valid context to use, copy the
-			 * operation type and parameters to the secure context
-			 * and jump to the fast smc entry point in the secure
-			 * payload. Entry into S-EL1 will take place upon exit
-			 * from this function.
-			 */
-			assert(&tsp_ctx->cpu_ctx == cm_get_context(SECURE));
-
-			/* Set appropriate entry for SMC.
-			 * We expect the TSP to manage the PSTATE.I and PSTATE.F
-			 * flags as appropriate.
-			 */
-			if (GET_SMC_TYPE(smc_fid) == SMC_TYPE_FAST) {
-				cm_set_elr_el3(SECURE, (uint64_t)
-						&tsp_vectors->fast_smc_entry);
-			} else {
-				set_std_smc_active_flag(tsp_ctx->state);
-				cm_set_elr_el3(SECURE, (uint64_t)
-						&tsp_vectors->std_smc_entry);
-			}
-
-			cm_el1_sysregs_context_restore(SECURE);
-			cm_set_next_eret_context(SECURE);
-			SMC_RET3(&tsp_ctx->cpu_ctx, smc_fid, x1, x2);
-		} else {
-			/*
-			 * This is the result from the secure client of an
-			 * earlier request. The results are in x1-x3. Copy it
-			 * into the non-secure context, save the secure state
-			 * and return to the non-secure state.
-			 */
-			assert(handle == cm_get_context(SECURE));
-			cm_el1_sysregs_context_save(SECURE);
-
-			/* Get a reference to the non-secure context */
-			ns_cpu_context = cm_get_context(NON_SECURE);
-			assert(ns_cpu_context);
-
-			/* Restore non-secure state */
-			cm_el1_sysregs_context_restore(NON_SECURE);
-			cm_set_next_eret_context(NON_SECURE);
-			if (GET_SMC_TYPE(smc_fid) == SMC_TYPE_STD)
-				clr_std_smc_active_flag(tsp_ctx->state);
-			SMC_RET3(ns_cpu_context, x1, x2, x3);
-		}
-
-		break;
+	/*
+	 * OPTEE has finished handling a S-EL1 FIQ interrupt. Execution
+	 * should resume in the normal world.
+	 */
+	case TEESMC_OPTEED_RETURN_FIQ_DONE:
+		/* Get a reference to the non-secure context */
+		ns_cpu_context = cm_get_context(NON_SECURE);
+		assert(ns_cpu_context);
 
 		/*
-		 * Request from non secure world to resume the preempted
-		 * Standard SMC call.
+		 * Restore non-secure state. There is no need to save the
+		 * secure system register context since OPTEE was supposed
+		 * to preserve it during S-EL1 interrupt handling.
 		 */
-	case TSP_FID_RESUME:
-		/* RESUME should be invoked only by normal world */
-		if (!ns) {
-			assert(0);
-			break;
-		}
+		cm_el1_sysregs_context_restore(NON_SECURE);
+		cm_set_next_eret_context(NON_SECURE);
 
-		/*
-		 * This is a resume request from the non-secure client.
-		 * save the non-secure state and send the request to
-		 * the secure payload.
-		 */
-		assert(handle == cm_get_context(NON_SECURE));
-
-		/* Check if we are already preempted before resume */
-		if (!get_std_smc_active_flag(tsp_ctx->state))
-			SMC_RET1(handle, SMC_UNK);
-
-		cm_el1_sysregs_context_save(NON_SECURE);
-
-		/*
-		 * We are done stashing the non-secure context. Ask the
-		 * secure payload to do the work now.
-		 */
-
-		/* We just need to return to the preempted point in
-		 * TSP and the execution will resume as normal.
-		 */
-		cm_el1_sysregs_context_restore(SECURE);
-		cm_set_next_eret_context(SECURE);
-		SMC_RET0(&tsp_ctx->cpu_ctx);
-
-		/*
-		 * This is a request from the secure payload for more arguments
-		 * for an ongoing arithmetic operation requested by the
-		 * non-secure world. Simply return the arguments from the non-
-		 * secure client in the original call.
-		 */
-	case TSP_GET_ARGS:
-		if (ns)
-			SMC_RET1(handle, SMC_UNK);
-
-		get_tsp_args(tsp_ctx, x1, x2);
-		SMC_RET2(handle, x1, x2);
-
-	case TOS_CALL_COUNT:
-		/*
-		 * Return the number of service function IDs implemented to
-		 * provide service to non-secure
-		 */
-		SMC_RET1(handle, TSP_NUM_FID);
-
-	case TOS_UID:
-		/* Return TSP UID to the caller */
-		SMC_UUID_RET(handle, tsp_uuid);
-
-	case TOS_CALL_VERSION:
-		/* Return the version of current implementation */
-		SMC_RET2(handle, TSP_VERSION_MAJOR, TSP_VERSION_MINOR);
+		SMC_RET0((uint64_t) ns_cpu_context);
 
 	default:
-		break;
+		panic();
 	}
-
-	SMC_RET1(handle, SMC_UNK);
 }
 
 /* Define a SPD runtime service descriptor for fast SMC calls */

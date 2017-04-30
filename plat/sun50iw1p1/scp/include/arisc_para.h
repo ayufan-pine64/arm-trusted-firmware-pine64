@@ -1,6 +1,8 @@
 #ifndef __ARISC_PARA_H__
 #define __ARISC_PARA_H__
 
+#define IR_NUM_KEY_SUP 16
+
 #define ARISC_MACHINE_PAD    0
 #define ARISC_MACHINE_HOMLET 1
 
@@ -55,13 +57,24 @@ typedef struct dev_cfg
 	int status;
 } dev_cfg_t;
 
+typedef struct ir_code
+{
+	uint32_t key_code;
+	uint32_t addr_code;
+} ir_code_t;
+
+typedef struct ir_key
+{
+	uint32_t num;
+	ir_code_t ir_code[IR_NUM_KEY_SUP];
+} ir_key_t;
+
 typedef struct cir_cfg
 {
 	uintptr_t base;
 	size_t size;
 	uint32_t irq;
-	uint32_t power_key_code;
-	uint32_t addr_code;
+	ir_key_t ir_key;
 	int status;
 } cir_cfg_t;
 
@@ -72,6 +85,17 @@ typedef struct pmu_cfg
 	uint32_t pmu_pwroff_vol;
 	uint32_t power_start;
 } pmu_cfg_t;
+
+typedef struct box_start_os_cfg
+{
+	uint32_t used;
+	uint32_t start_type;
+	uint32_t irkey_used;
+	uint32_t pmukey_used;
+	uint32_t pmukey_num;
+	uint32_t led_power;
+	uint32_t led_state;
+} box_start_os_cfg_t;
 
 typedef struct power_cfg
 {
@@ -163,6 +187,7 @@ typedef struct dts_cfg
 	struct dev_cfg s_jtag;
 	struct cir_cfg s_cir;
 	struct pmu_cfg pmu;
+	struct box_start_os_cfg start_os;
 	struct power_cfg power;
 } dts_cfg_t;
 
@@ -172,8 +197,6 @@ typedef struct arisc_para
 	uint32_t message_pool_size;
 	uint32_t standby_base;
 	uint32_t standby_size;
-	uint32_t power_key_code;
-	uint32_t addr_code;
 	uint32_t suart_status;
 	uint32_t pmu_bat_shutdown_ltf;
 	uint32_t pmu_bat_shutdown_htf;
@@ -182,9 +205,11 @@ typedef struct arisc_para
 	uint32_t powchk_used;
 	uint32_t power_reg;
 	uint32_t system_power;
+	struct ir_key ir_key;
 	struct dram_para dram_para;
 	struct arisc_freq_voltage vf[ARISC_DVFS_VF_TABLE_MAX];
 	uint32_t power_regu_tree[DM_MAX];
+	struct box_start_os_cfg start_os;
 } arisc_para_t;
 
 #define ARISC_PARA_SIZE (sizeof(struct arisc_para))

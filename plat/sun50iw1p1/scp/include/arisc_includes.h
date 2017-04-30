@@ -35,7 +35,6 @@
 //#include <linux/delay.h>
 //#include <linux/arisc/hwmsgbox.h>
 //#include <linux/arisc/hwspinlock.h>
-#define	CONFIG_ARCH_SUN50IW1P1
 
 #include <arch_helpers.h>
 #include <platform.h>

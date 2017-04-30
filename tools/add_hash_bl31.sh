@@ -25,12 +25,16 @@ build_bl31()
 
 do_common()
 {
-    if [ "x${BUILD_MODE}" = "xbl31" ] ; then
-        echo " add commit info for bl31 "
-        build_bl31
-    else
-        echo "build none"
-    fi
+	if [ -s ./cur.log ] ; then
+		if [ "x${BUILD_MODE}" = "xbl31" ] ; then
+			echo " add commit info for bl31 "
+			build_bl31
+		else
+			echo "build none"
+		fi
+	else
+		echo "not set commit log"
+	fi
 }
 while getopts f:m: OPTION
 do
