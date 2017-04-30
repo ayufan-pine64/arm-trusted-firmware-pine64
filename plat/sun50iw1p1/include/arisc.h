@@ -263,20 +263,11 @@ typedef enum arisc_rsb_datatype {
 	RSB_DATA_TYPE_WORD  = 4
 } arisc_rsb_datatype_e;
 
-#if defined CONFIG_ARCH_SUN8IW1P1
-typedef enum arisc_p2wi_bits_ops {
-	P2WI_CLR_BITS,
-	P2WI_SET_BITS
-} arisc_p2wi_bits_ops_e;
-#elif (defined CONFIG_ARCH_SUN8IW3P1) || (defined CONFIG_ARCH_SUN8IW5P1) || (defined CONFIG_ARCH_SUN8IW6P1) || \
-      (defined CONFIG_ARCH_SUN8IW7P1) || (defined CONFIG_ARCH_SUN8IW9P1) || (defined CONFIG_ARCH_SUN9IW1P1) || \
-      (defined CONFIG_ARCH_SUN50IW1P1)
 /* rsb transfer data type */
 typedef enum arisc_rsb_bits_ops {
 	RSB_CLR_BITS,
 	RSB_SET_BITS
 } arisc_rsb_bits_ops_e;
-#endif
 
 typedef enum arisc_audio_mode {
 	AUDIO_PLAY,                   /* play    mode */
@@ -545,10 +536,13 @@ int arisc_set_dram_crc_result(unsigned long error, unsigned long total_count,
  */
 int arisc_cpux_ready_notify(void);
 
-#if defined CONFIG_ARCH_SUN8IW1P1
-void arisc_fake_power_off(void);
-#endif
-
+/**
+ * fake poweroff.
+ *
+ * return: result, 0 - fake poweroff successed,
+ *                !0 - fake poweroff failed;
+ */
+int arisc_fake_poweroff(void);
 /* ====================================axp interface==================================== */
 /**
  * register call-back function, call-back function is for arisc notify some event to ac327,

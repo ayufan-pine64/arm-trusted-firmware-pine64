@@ -40,21 +40,29 @@
 #include <context_mgmt.h>
 #include <arisc.h>
 #include <mmio.h>
+#include <efuse.h>
+#include <platform_config.h>
 
-#define ARM_NUM_CALLS 6
+#define ARM_NUM_CALLS                           6
 
-#define ARM_SVC_CALL_COUNT	0x8000ff00
-#define ARM_SVC_UID		0x8000ff01
+#define ARM_SVC_CALL_COUNT                      0x8000ff00
+#define ARM_SVC_UID                             0x8000ff01
 //0x8000ff02 reserved
-#define ARM_SVC_VERSION		0x8000ff03
-#define ARM_SVC_RUNNSOS		0x8000ff04
-#define ARM_SVC_READ_SEC_REG    0x8000ff05
-#define ARM_SVC_WRITE_SEC_REG   0x8000ff06
+#define ARM_SVC_VERSION                         0x8000ff03
+#define ARM_SVC_RUNNSOS                         0x8000ff04
 
-#define ARM_SVC_ARISC_STARTUP	 0x8000ff10
-#define ARM_SVC_ARISC_WAIT_READY 0x8000ff11
-#define ARM_SVC_ARISC_READ_PMU   0x8000ff12
-#define ARM_SVC_ARISC_WRITE_PMU  0x8000ff13
+#define ARM_SVC_READ_SEC_REG                    0x8000ff05
+#define ARM_SVC_READ_SEC_REG_AARCH64            0xc000ff05
+
+#define ARM_SVC_WRITE_SEC_REG                   0x8000ff06
+#define ARM_SVC_WRITE_SEC_REG_AARCH64           0xc000ff06
+
+
+#define ARM_SVC_ARISC_STARTUP                   0x8000ff10
+#define ARM_SVC_ARISC_WAIT_READY                0x8000ff11
+#define ARM_SVC_ARISC_READ_PMU                  0x8000ff12
+#define ARM_SVC_ARISC_WRITE_PMU                 0x8000ff13
+#define ARM_SVC_ARISC_FAKE_POWER_OFF_REQ_ARCH32 0x8000ff14
 
 
 /* ARM Standard Service Calls version numbers */
@@ -84,8 +92,8 @@ void prepare_nonsec_os_entry(uint64_t kernel_addr, uint64_t dtb_addr)
 	next_image_info.spsr = SPSR_64(MODE_EL1, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS);
 	next_image_info.pc = kernel_addr;
 	next_image_info.args.arg0 = dtb_addr;
-	
-	
+
+
 
 	INFO("BL3-1: Next image address = 0x%llx\n",(unsigned long long) next_image_info.pc);
 	INFO("BL3-1: Next image spsr = 0x%x\n", next_image_info.spsr);
@@ -109,7 +117,7 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 			     uint64_t flags)
 {
 	//INFO(" Arm Architechture Service Call: 0x%x \n", smc_fid);
-	
+
 	switch (smc_fid) {
 	case ARM_SVC_CALL_COUNT:
 		SMC_RET1(handle, ARM_NUM_CALLS);
@@ -123,8 +131,10 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		prepare_nonsec_os_entry((uint32_t)x1,(uint32_t)x2);
 		SMC_RET0(handle);
 	case ARM_SVC_READ_SEC_REG:
+	case ARM_SVC_READ_SEC_REG_AARCH64:
 		SMC_RET1(handle, mmio_read_32((uintptr_t)x1));
 	case ARM_SVC_WRITE_SEC_REG:
+	case ARM_SVC_WRITE_SEC_REG_AARCH64:
 		mmio_write_32((uintptr_t)x1,(uint32_t)x2);
 		SMC_RET0(handle);
 
@@ -134,14 +144,25 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		SMC_RET1(handle, sunxi_arisc_probe((void *)x1));
 	case ARM_SVC_ARISC_WAIT_READY:
 		SMC_RET1(handle, sunxi_arisc_wait_ready());
+#if (defined CONFIG_ARCH_SUN50IW1P1)
 	case ARM_SVC_ARISC_READ_PMU:
 		SMC_RET1(handle, arisc_rsb_read_pmu_reg((uint32_t)x1));
 	case ARM_SVC_ARISC_WRITE_PMU:
 		SMC_RET1(handle,arisc_rsb_write_pmu_reg((uint32_t)x1,(uint32_t)x2));
+#elif (defined CONFIG_ARCH_SUN50IW2P1)
+	case ARM_SVC_ARISC_READ_PMU:
+		SMC_RET1(handle, arisc_twi_read_pmu_reg((uint32_t)x1));
+	case ARM_SVC_ARISC_WRITE_PMU:
+		SMC_RET1(handle,arisc_twi_write_pmu_reg((uint32_t)x1,(uint32_t)x2));
+#endif
+	case ARM_SVC_ARISC_FAKE_POWER_OFF_REQ_ARCH32:
+		SMC_RET1(handle, arisc_fake_poweroff());
+
 
 	//arise aa64 cmd
 	case ARM_SVC_ARISC_CPUX_DVFS_REQ:
 		SMC_RET1(handle, arisc_dvfs_set_cpufreq((uint32_t)x1, (uint32_t)x2, (uint32_t)x3));
+#if (defined CONFIG_ARCH_SUN50IW1P1)
 	case ARM_SVC_ARISC_RSB_READ_BLOCK_DATA:
 		SMC_RET1(handle, arisc_rsb_read_block_data((uint32_t *)x1));
 	case ARM_SVC_ARISC_RSB_WRITE_BLOCK_DATA:
@@ -152,6 +173,14 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		SMC_RET1(handle, arisc_rsb_set_interface_mode((uint32_t)x1, (uint32_t)x2, (uint32_t)x3));
 	case ARM_SVC_ARISC_RSB_SET_RTSADDR:
 		SMC_RET1(handle, arisc_rsb_set_rtsaddr((uint32_t)x1, (uint32_t)x2));
+#elif (defined CONFIG_ARCH_SUN50IW2P1)
+	case ARM_SVC_ARISC_TWI_READ_BLOCK_DATA:
+		SMC_RET1(handle, arisc_twi_read_block_data((uint32_t *)x1));
+	case ARM_SVC_ARISC_TWI_WRITE_BLOCK_DATA:
+		SMC_RET1(handle, arisc_twi_write_block_data((uint32_t *)x1));
+	case ARM_SVC_ARISC_TWI_BITS_OPS_SYNC:
+		SMC_RET1(handle, twi_bits_ops_sync((uint32_t *)x1));
+#endif
 	case ARM_SVC_ARISC_SET_DEBUG_LEVEL:
 		SMC_RET1(handle, arisc_set_debug_level((uint32_t)x1));
 	case ARM_SVC_ARISC_SET_UART_BAUDRATE:
@@ -184,6 +213,19 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		SMC_RET1(handle, arisc_query_wakeup_source((uint32_t *)x1));
 	case ARM_SVC_ARISC_STANDBY_INFO_REQ:
 		SMC_RET1(handle, arisc_query_set_standby_info((standby_info_para_t *)x1, (arisc_rw_type_e)x2));
+	//aarch32 cmd for uboot to access efuse
+	case ARM_SVC_EFUSE_READ:
+		x1=(uint32_t)x1;
+		x2=(uint32_t)x2;
+		SMC_RET1(handle, sunxi_efuse_read((void *)x1, (void *)x2));
+	case ARM_SVC_EFUSE_WRITE:
+		x1=(uint32_t)x1;
+		SMC_RET1(handle, sunxi_efuse_write((void *)x1));
+	//probe security enable bit
+	case ARM_SVC_EFUSE_PROBE_SECURE_ENABLE_AARCH32:
+	case ARM_SVC_EFUSE_PROBE_SECURE_ENABLE_AARCH64:
+		SMC_RET1(handle, sunxi_efuse_probe_security_mode());
+
 	default:
 		WARN("Unimplemented Standard Service Call: 0x%x \n", smc_fid);
 		SMC_RET1(handle, SMC_UNK);

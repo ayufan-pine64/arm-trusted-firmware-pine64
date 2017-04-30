@@ -56,7 +56,7 @@ void tspd_init_tsp_ep_state(struct entry_point_info *tsp_entry_point,
 	 * We support AArch64 TSP for now.
 	 * TODO: Add support for AArch32 TSP
 	 */
-	assert(rw == TSP_AARCH64);
+	//assert(rw == TSP_AARCH64);
 
 	/* Associate this context with the cpu specified */
 	tsp_ctx->mpidr = read_mpidr_el1();
@@ -73,9 +73,11 @@ void tspd_init_tsp_ep_state(struct entry_point_info *tsp_entry_point,
 	SET_PARAM_HEAD(tsp_entry_point, PARAM_EP, VERSION_1, ep_attr);
 
 	tsp_entry_point->pc = pc;
-	tsp_entry_point->spsr = SPSR_64(MODE_EL1,
-					MODE_SP_ELX,
-					DISABLE_ALL_EXCEPTIONS);
+	//tsp_entry_point->spsr = SPSR_64(MODE_EL1,
+	//				MODE_SP_ELX,
+	//				DISABLE_ALL_EXCEPTIONS);
+	tsp_entry_point->spsr = SPSR_MODE32(MODE32_svc,SPSR_T_ARM,SPSR_E_LITTLE,DISABLE_ALL_EXCEPTIONS);
+
 	memset(&tsp_entry_point->args, 0, sizeof(tsp_entry_point->args));
 }
 

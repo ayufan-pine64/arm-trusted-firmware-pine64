@@ -22,26 +22,7 @@
 #ifndef __ARISC_CFGS_H
 #define __ARISC_CFGS_H
 
-/* arisc software version number */
-#if defined CONFIG_ARCH_SUN8IW1P1
-#define ARISC_VERSIONS (100)
-#elif defined CONFIG_ARCH_SUN8IW3P1
-#define ARISC_VERSIONS (101)
-#elif defined CONFIG_ARCH_SUN8IW5P1
-#define ARISC_VERSIONS (102)
-#elif defined CONFIG_ARCH_SUN8IW6P1
-#define ARISC_VERSIONS (103)
-#elif defined CONFIG_ARCH_SUN8IW7P1
-#define ARISC_VERSIONS (104)
-#elif defined CONFIG_ARCH_SUN8IW9P1
-#define ARISC_VERSIONS (105)
-#elif defined CONFIG_ARCH_SUN50IW1P1
 #define ARISC_VERSIONS (110)
-#elif defined CONFIG_ARCH_SUN9IW1P1
-#define ARISC_VERSIONS (200)
-#else
-#error "please select a platform\n"
-#endif
 
 /* debugger system */
 #define ARISC_DEBUG_ON
