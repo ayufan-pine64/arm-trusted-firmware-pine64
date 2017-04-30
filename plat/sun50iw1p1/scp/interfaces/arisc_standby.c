@@ -94,34 +94,6 @@ int arisc_system_op(arisc_system_state_t state)
 	return 0;
 }
 
-/**
- * fake poweroff.
- *
- * return: result, 0 - fake poweroff successed,
- *                !0 - fake poweroff failed;
- */
-int arisc_fake_poweroff(void)
-{
-	struct arisc_message *pmessage;
-
-	/* allocate a message frame */
-	pmessage = arisc_message_allocate(0);
-	if (pmessage == NULL) {
-		ARISC_ERR("allocate message for sys op request failed\n");
-		return -ENOMEM;
-	}
-
-	pmessage->type       = ARISC_FAKE_POWER_OFF_REQ;
-	pmessage->cb.handler = NULL;
-	pmessage->cb.arg     = NULL;
-	pmessage->state      = ARISC_MESSAGE_INITIALIZED;
-
-	/* send enter sys operations request to arisc */
-	arisc_hwmsgbox_send_message(pmessage, ARISC_SEND_MSG_TIMEOUT);
-
-	return 0;
-}
-
 /*
  * enter cpu idle.
  * @para:  parameter for enter cpu idle.

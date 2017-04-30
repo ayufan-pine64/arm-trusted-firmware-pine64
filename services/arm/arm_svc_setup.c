@@ -40,28 +40,21 @@
 #include <context_mgmt.h>
 #include <arisc.h>
 #include <mmio.h>
-#include <efuse.h>
 
-#define ARM_NUM_CALLS                           6
+#define ARM_NUM_CALLS 6
 
-#define ARM_SVC_CALL_COUNT                      0x8000ff00
-#define ARM_SVC_UID                             0x8000ff01
+#define ARM_SVC_CALL_COUNT	0x8000ff00
+#define ARM_SVC_UID		0x8000ff01
 //0x8000ff02 reserved
-#define ARM_SVC_VERSION                         0x8000ff03
-#define ARM_SVC_RUNNSOS                         0x8000ff04
+#define ARM_SVC_VERSION		0x8000ff03
+#define ARM_SVC_RUNNSOS		0x8000ff04
+#define ARM_SVC_READ_SEC_REG    0x8000ff05
+#define ARM_SVC_WRITE_SEC_REG   0x8000ff06
 
-#define ARM_SVC_READ_SEC_REG                    0x8000ff05
-#define ARM_SVC_READ_SEC_REG_AARCH64            0xc000ff05
-
-#define ARM_SVC_WRITE_SEC_REG                   0x8000ff06
-#define ARM_SVC_WRITE_SEC_REG_AARCH64           0xc000ff06
-
-
-#define ARM_SVC_ARISC_STARTUP                   0x8000ff10
-#define ARM_SVC_ARISC_WAIT_READY                0x8000ff11
-#define ARM_SVC_ARISC_READ_PMU                  0x8000ff12
-#define ARM_SVC_ARISC_WRITE_PMU                 0x8000ff13
-#define ARM_SVC_ARISC_FAKE_POWER_OFF_REQ_ARCH32 0x8000ff14
+#define ARM_SVC_ARISC_STARTUP	 0x8000ff10
+#define ARM_SVC_ARISC_WAIT_READY 0x8000ff11
+#define ARM_SVC_ARISC_READ_PMU   0x8000ff12
+#define ARM_SVC_ARISC_WRITE_PMU  0x8000ff13
 
 
 /* ARM Standard Service Calls version numbers */
@@ -130,10 +123,8 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		prepare_nonsec_os_entry((uint32_t)x1,(uint32_t)x2);
 		SMC_RET0(handle);
 	case ARM_SVC_READ_SEC_REG:
-	case ARM_SVC_READ_SEC_REG_AARCH64:
 		SMC_RET1(handle, mmio_read_32((uintptr_t)x1));
 	case ARM_SVC_WRITE_SEC_REG:
-	case ARM_SVC_WRITE_SEC_REG_AARCH64:
 		mmio_write_32((uintptr_t)x1,(uint32_t)x2);
 		SMC_RET0(handle);
 
@@ -147,9 +138,6 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		SMC_RET1(handle, arisc_rsb_read_pmu_reg((uint32_t)x1));
 	case ARM_SVC_ARISC_WRITE_PMU:
 		SMC_RET1(handle,arisc_rsb_write_pmu_reg((uint32_t)x1,(uint32_t)x2));
-	case ARM_SVC_ARISC_FAKE_POWER_OFF_REQ_ARCH32:
-		SMC_RET1(handle, arisc_fake_poweroff());
-
 
 	//arise aa64 cmd
 	case ARM_SVC_ARISC_CPUX_DVFS_REQ:
@@ -196,19 +184,6 @@ uint64_t arm_svc_smc_handler(uint32_t smc_fid,
 		SMC_RET1(handle, arisc_query_wakeup_source((uint32_t *)x1));
 	case ARM_SVC_ARISC_STANDBY_INFO_REQ:
 		SMC_RET1(handle, arisc_query_set_standby_info((standby_info_para_t *)x1, (arisc_rw_type_e)x2));
-	//aarch32 cmd for uboot to access efuse
-	case ARM_SVC_EFUSE_READ:
-		x1=(uint32_t)x1;
-		x2=(uint32_t)x2;
-		SMC_RET1(handle, sunxi_efuse_read((void *)x1, (void *)x2));
-	case ARM_SVC_EFUSE_WRITE:
-		x1=(uint32_t)x1;
-		SMC_RET1(handle, sunxi_efuse_write((void *)x1));
-	//probe security enable bit
-	case ARM_SVC_EFUSE_PROBE_SECURE_ENABLE_AARCH32:
-	case ARM_SVC_EFUSE_PROBE_SECURE_ENABLE_AARCH64:
-		SMC_RET1(handle, sunxi_efuse_probe_security_mode());
-
 	default:
 		WARN("Unimplemented Standard Service Call: 0x%x \n", smc_fid);
 		SMC_RET1(handle, SMC_UNK);

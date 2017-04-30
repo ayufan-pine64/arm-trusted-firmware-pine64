@@ -169,7 +169,7 @@ uint64_t plat_get_syscnt_freq(void)
 	uint64_t counter_base_frequency;
 
 	/* Read the frequency from Frequency modes table */
-	counter_base_frequency = 24000000;//mmio_read_32(SYS_CNTCTL_BASE + CNTFID_OFF);
+	counter_base_frequency = 24<<20;//mmio_read_32(SYS_CNTCTL_BASE + CNTFID_OFF);
 
 	/* The first entry of the frequency modes table must not be 0 */
 	if (counter_base_frequency == 0)
@@ -183,7 +183,7 @@ void sunxi_cci_init(void)
 	/*
 	 * Initialize CCI-400 driver
 	 */
-
+	
 }
 
 void sunxi_cci_enable(void)
@@ -193,7 +193,7 @@ void sunxi_cci_enable(void)
 	 * for locks as no other cpu is active at the
 	 * moment
 	 */
-
+	
 }
 
 
@@ -212,8 +212,7 @@ uint32_t sunxi_get_spsr_for_bl32_entry(void)
 	 * The Secure Payload Dispatcher service is responsible for
 	 * setting the SPSR prior to entry into the BL32 image.
 	 */
-	//return 0;
-	return SPSR_MODE32(MODE32_svc,SPSR_T_ARM,SPSR_E_LITTLE,DISABLE_ALL_EXCEPTIONS);
+	return 0;
 }
 
 /*******************************************************************************

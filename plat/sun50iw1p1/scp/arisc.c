@@ -119,8 +119,8 @@ static int sunxi_arisc_para_init(struct arisc_para *para)
 	para->standby_size = (uint32_t)dts_cfg.space.standby_size;
 	memcpy((void *)&para->vf, (void *)dts_cfg.vf, sizeof(para->vf));
 	memcpy((void *)&para->dram_para, (void *)&dts_cfg.dram_para, sizeof(para->dram_para));
-	memcpy(&para->ir_key, &dts_cfg.s_cir.ir_key, sizeof(ir_key_t));
-	memcpy(&para->start_os, &dts_cfg.start_os, sizeof(box_start_os_cfg_t));
+	para->power_key_code = dts_cfg.s_cir.power_key_code;
+	para->addr_code = dts_cfg.s_cir.addr_code;
 	para->suart_status = dts_cfg.s_uart.status;
 	para->pmu_bat_shutdown_ltf = dts_cfg.pmu.pmu_bat_shutdown_ltf;
 	para->pmu_bat_shutdown_htf = dts_cfg.pmu.pmu_bat_shutdown_htf;
@@ -221,7 +221,7 @@ int sunxi_arisc_probe(void *cfg)
 		ARISC_LOG("arisc startup failed\n");
 	}
 
-	//arisc_set_paras();
+	arisc_set_paras();
 
 	/* enable arisc asyn tx interrupt */
 	//arisc_hwmsgbox_enable_receiver_int(ARISC_HWMSGBOX_ARISC_ASYN_TX_CH, AW_HWMSG_QUEUE_USER_AC327);

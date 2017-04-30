@@ -126,7 +126,6 @@ psci_aff_common_finish_entry:
 	mov	x0, #DISABLE_DCACHE
 	bl	bl31_plat_enable_mmu
 
-	bl  sunxi_tspd_cpu_on_init
 	/* ---------------------------------------------
 	 * Call the finishers starting from affinity
 	 * level 0.

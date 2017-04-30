@@ -71,8 +71,8 @@
 #define SUNXI_TRUSTED_MONITOR_LIMIT	(SUNXI_TRUSTED_MONITOR_BASE + (1<<20)) //1M
 
 
-/* 2M shared memory */
-#define SUNXI_SHARED_RAM_SIZE	0x200000
+/* 4KB shared memory */
+#define SUNXI_SHARED_RAM_SIZE	0x1000
 
 /* Shared memory at the base of Trusted DRAM */
 #define SUNXI_SHARED_RAM_BASE		SUNXI_TRUSTED_DRAM_BASE

@@ -34,8 +34,7 @@ SPD_INCLUDES		:=	-Iinclude/bl32/tsp
 SPD_SOURCES		:=	services/spd/tspd/tspd_common.c		\
 				services/spd/tspd/tspd_helpers.S	\
 				services/spd/tspd/tspd_main.c		\
-				services/spd/tspd/tspd_pm.c         \
-				services/spd/tspd/tspd_sunxi.c
+				services/spd/tspd/tspd_pm.c
 
 # This dispatcher is paired with a Test Secure Payload source and we intend to
 # build the Test Secure Payload along with this dispatcher.
@@ -52,4 +51,4 @@ BL32_ROOT		:=	bl32/tsp
 include ${BL32_ROOT}/tsp.mk
 
 # Let the top-level Makefile know that we intend to build the SP from source
-NEED_BL32		:=	no
+NEED_BL32		:=	yes

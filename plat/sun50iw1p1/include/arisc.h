@@ -545,13 +545,10 @@ int arisc_set_dram_crc_result(unsigned long error, unsigned long total_count,
  */
 int arisc_cpux_ready_notify(void);
 
-/**
- * fake poweroff.
- *
- * return: result, 0 - fake poweroff successed,
- *                !0 - fake poweroff failed;
- */
-int arisc_fake_poweroff(void);
+#if defined CONFIG_ARCH_SUN8IW1P1
+void arisc_fake_power_off(void);
+#endif
+
 /* ====================================axp interface==================================== */
 /**
  * register call-back function, call-back function is for arisc notify some event to ac327,

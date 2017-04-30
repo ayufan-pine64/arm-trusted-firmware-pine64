@@ -40,8 +40,6 @@
 #include <stddef.h>
 #include "sunxi_def.h"
 #include "sunxi_private.h"
-#include <head_data.h>
-
 
 /*******************************************************************************
  * Declarations of linker defined symbols which will help us find the layout
@@ -72,7 +70,6 @@ extern unsigned long __COHERENT_RAM_END__;
 #define BL31_COHERENT_RAM_BASE (unsigned long)(&__COHERENT_RAM_START__)
 #define BL31_COHERENT_RAM_LIMIT (unsigned long)(&__COHERENT_RAM_END__)
 
-extern  struct spare_monitor_head  monitor_head;
 
 #if 0
 #if RESET_TO_BL31
@@ -202,15 +199,6 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 	 * present.
 	 */
 	sunxi_security_setup();
-
-	/* Populate entry point information for BL3-2 and BL3-3 */
-	SET_PARAM_HEAD(&bl32_image_ep_info,
-				PARAM_EP,
-				VERSION_1,
-				0);
-	SET_SECURITY_STATE(bl32_image_ep_info.h.attr, SECURE);
-	bl32_image_ep_info.pc = monitor_head.secureos_base;
-	bl32_image_ep_info.spsr = sunxi_get_spsr_for_bl32_entry();
 	/*
 	 * Tell BL31 where the non-trusted software image
 	 * is located and the entry state information

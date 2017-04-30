@@ -50,7 +50,7 @@ ARCH 			:= aarch64
 DEFAULT_PLAT		:= sun50iw1p1
 PLAT			:= ${DEFAULT_PLAT}
 # SPD choice
-SPD			:= tspd
+SPD			:= none
 # Base commit to perform code check on
 BASE_COMMIT		:= origin/master
 # NS timer register save and restore
@@ -250,7 +250,7 @@ PP			:=	${CROSS_COMPILE}gcc-4.9 -E ${CFLAGS}
 
 # Variables for use with Firmware Image Package
 FIPTOOLPATH		?=	tools/fip_create
-FIPTOOL			?=	${FIPTOOLPATH}/fip_create
+FIPTOOL			?=	${FIPTOOLPATH}/fip_create 
 fiptool:		${FIPTOOL}
 fip:			${BUILD_PLAT}/fip.bin
 
