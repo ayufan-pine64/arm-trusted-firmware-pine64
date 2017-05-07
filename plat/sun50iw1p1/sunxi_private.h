@@ -69,7 +69,7 @@ void sunxi_configure_mmu_el3(unsigned long total_base,
 int sunxi_config_setup(void);
 
 /* Declarations for sunxi_topology.c */
-int plat_setup_topology(void);
+int sunxi_setup_topology(void);
 
 /* Declarations for sunxi_io_storage.c */
 void sunxi_io_setup(void);
